@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Memory Test - Angka & Huruf</title>
+<style>
+  *{box-sizing:border-box}
+  body{
+    margin:0;font-family:Arial,sans-serif;background:#f5f5f5;color:#222;
+    min-height:100vh;display:flex;justify-content:center;align-items:center;padding:20px
+  }
+  .box{
+    width:min(700px,100%);background:white;border-radius:16px;padding:28px;
+    box-shadow:0 8px 30px rgba(0,0,0,.12);text-align:center
+  }
+  h1{margin-top:0}
+  button{
+    border:0;border-radius:10px;padding:13px 24px;font-size:17px;
+    cursor:pointer;background:#222;color:white
+  }
+  button:hover{opacity:.85}
+  .hidden{display:none}
+  .memory{
+    font-size:38px;font-weight:bold;letter-spacing:8px;margin:35px 0
+  }
+  .timer{font-size:20px;margin-bottom:15px}
+  .question{font-size:24px;font-weight:bold;margin:20px 0}
+  .options{
+    display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:20px
+  }
+  .option{
+    background:#eee;color:#222;text-align:left
+  }
+  .option.correct{background:#b9f6ca}
+  .option.wrong{background:#ffcdd2}
+  .progress{margin-bottom:15px;color:#666}
+  .score{font-size:28px;font-weight:bold;margin:20px 0}
+  @media(max-width:500px){
+    .options{grid-template-columns:1fr}
+    .memory{font-size:30px;letter-spacing:5px}
+  }
+</style>
+</head>
+<body>
+<div class="box">
+
+  <section id="startScreen">
+    <h1>🧠 Memory Test</h1>
+    <p>Hafalkan 5 pasangan angka + huruf selama beberapa detik.</p>
+    <p>Setelah itu data akan hilang dan kamu menjawab 20 soal pilihan ganda.</p>
+    <button onclick="startTest()">Start</button>
+  </section>
+
+  <section id="memoryScreen" class="hidden">
+    <h2>HAFALKAN!</h2>
+    <div class="timer">Waktu: <span id="countdown">8</span> detik</div>
+    <div id="memoryData" class="memory"></div>
+  </section>
+
+  <section id="quizScreen" class="hidden">
+    <div class="progress">Soal <span id="qNum">1</span> / 20</div>
+    <div id="question" class="question"></div>
+    <div id="options" class="options"></div>
+  </section>
+
+  <section id="resultScreen" class="hidden">
+    <h1>Hasil Tes</h1>
+    <div class="score"><span id="score">0</span> / 20</div>
+    <p id="resultText"></p>
+    <button onclick="location.reload()">Coba Lagi</button>
+  </section>
+
+</div>
+
+<script>
+const data = [
+  ["27","K"], ["54","B"], ["31","R"], ["68","M"], ["42","T"]
+];
+
+let questions = [];
+let current = 0;
+let score = 0;
+let countdownTimer;
+
+const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+
+function shuffle(arr){
+  return [...arr].sort(() => Math.random() - 0.5);
+}
+
+function uniqueOptions(correct, pool, count=4){
+  let opts = [correct];
+  for(const x of shuffle(pool)){
+    if(String(x) !== String(correct) && !opts.includes(String(x))){
+      opts.push(String(x));
+    }
+    if(opts.length === count) break;
+  }
+  return shuffle(opts);
+}
+
+function makeQuestions(){
+  const q = [];
+
+  // 1-5: direct recall
+  data.forEach(([num, letter]) => {
+    q.push({
+      text:`Angka berapa yang berpasangan dengan huruf ${letter}?`,
+      options:uniqueOptions(num, data.map(x=>x[0])),
+      answer:num
+    });
+  });
+
+  data.forEach(([num, letter]) => {
+    q.push({
+      text:`Huruf apa yang berpasangan dengan angka ${num}?`,
+      options:uniqueOptions(letter, data.map(x=>x[1])),
+      answer:letter
+    });
+  });
+
+  // 11-15: position/order
+  q.push({
+    text:"Pada urutan ke berapa pasangan 31 — R muncul?",
+    options:["1","2","3","4"], answer:"3"
+  });
+  q.push({
+    text:"Pasangan pada urutan ke-5 adalah...",
+    options:shuffle(["27 — K","54 — B","31 — R","42 — T"]), answer:"42 — T"
+  });
+  q.push({
+    text:"Pasangan pada urutan ke-2 adalah...",
+    options:shuffle(["27 — K","54 — B","68 — M","42 — T"]), answer:"54 — B"
+  });
+  q.push({
+    text:"Pasangan manakah yang berada di antara 54 — B dan 42 — T?",
+    options:shuffle(["27 — K","31 — R","68 — M","54 — B"]), answer:"31 — R"
+  });
+  q.push({
+    text:"Pasangan pertama adalah...",
+    options:shuffle(["27 — K","54 — B","31 — R","68 — M"]), answer:"27 — K"
+  });
+
+  // 16-20: mixed recall
+  q.push({
+    text:"Manakah pasangan yang BENAR?",
+    options:shuffle(["27 — B","54 — B","31 — M","68 — T"]), answer:"54 — B"
+  });
+  q.push({
+    text:"Manakah pasangan yang SALAH?",
+    options:shuffle(["27 — K","54 — B","31 — R","42 — M"]), answer:"42 — M"
+  });
+  q.push({
+    text:"Huruf pada angka terbesar adalah...",
+    options:shuffle(["K","B","M","T"]), answer:"M"
+  });
+  q.push({
+    text:"Angka terkecil berpasangan dengan huruf...",
+    options:shuffle(["K","B","R","M"]), answer:"K"
+  });
+  q.push({
+    text:"Jumlah semua angka yang dihafalkan adalah...",
+    options:shuffle(["202","212","222","232"]), answer:"222"
+  });
+
+  return q;
+}
+
+function startTest(){
+  document.getElementById("startScreen").classList.add("hidden");
+  document.getElementById("memoryScreen").classList.remove("hidden");
+
+  document.getElementById("memoryData").innerHTML =
+    data.map(x => `${x[0]} — ${x[1]}`).join("<br>");
+
+  let t = 8;
+  document.getElementById("countdown").textContent = t;
+
+  countdownTimer = setInterval(()=>{
+    t--;
+    document.getElementById("countdown").textContent = t;
+    if(t <= 0){
+      clearInterval(countdownTimer);
+      document.getElementById("memoryScreen").classList.add("hidden");
+      document.getElementById("quizScreen").classList.remove("hidden");
+      questions = shuffle(makeQuestions()).slice(0,20);
+      showQuestion();
+    }
+  },1000);
+}
+
+function showQuestion(){
+  const q = questions[current];
+  document.getElementById("qNum").textContent = current + 1;
+  document.getElementById("question").textContent = q.text;
+
+  const options = document.getElementById("options");
+  options.innerHTML = "";
+
+  q.options.forEach((opt,i)=>{
+    const btn = document.createElement("button");
+    btn.className = "option";
+    btn.textContent = `${String.fromCharCode(65+i)}. ${opt}`;
+    btn.onclick = () => answer(btn, opt, q.answer);
+    options.appendChild(btn);
+  });
+}
+
+function answer(btn, selected, correct){
+  const buttons = document.querySelectorAll(".option");
+  buttons.forEach(b => b.disabled = true);
+
+  if(String(selected) === String(correct)){
+    score++;
+    btn.classList.add("correct");
+  }else{
+    btn.classList.add("wrong");
+    buttons.forEach(b=>{
+      if(b.textContent.slice(3) === String(correct)) b.classList.add("correct");
+    });
+  }
+
+  setTimeout(()=>{
+    current++;
+    if(current < questions.length){
+      showQuestion();
+    }else{
+      showResult();
+    }
+  },650);
+}
+
+function showResult(){
+  document.getElementById("quizScreen").classList.add("hidden");
+  document.getElementById("resultScreen").classList.remove("hidden");
+  document.getElementById("score").textContent = score;
+
+  let text = "";
+  if(score === 20) text = "🔥 Sempurna! Memory lu kuat banget.";
+  else if(score >= 17) text = "💪 Mantap. Cocok buat latihan psikotes.";
+  else if(score >= 14) text = "👍 Bagus, tinggal tingkatkan fokus.";
+  else if(score >= 10) text = "😅 Lumayan. Coba ulang beberapa kali.";
+  else text = "🧠 Jangan panik. Latihan memory memang perlu dibiasakan.";
+
+  document.getElementById("resultText").textContent = text;
+}
+</script>
+</body>
+</html>
